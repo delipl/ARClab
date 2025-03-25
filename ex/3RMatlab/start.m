@@ -29,7 +29,7 @@ g = -10;
 
 Tv = 0.01;
 Ts = 0.01;
-Tk = 5;
+Tk = 1;
 
 Kp = 10 * eye(3);
 Kd = 50 * eye(3);
@@ -101,7 +101,22 @@ disp('Starting ...');
     sim_data.time = [0:sample_time:tEnd];
     sim_data.out_qr_d1 = youtput(:,1:3);
     sim_data.out_qr_d0 = youtput(:,4:6);
+figure(1)
+
+plot(sim_data.time,sim_data.out_qr_d0)
+legend(["q0", "q1", "q2"])
 
 
+figure(2)
+plot(sim_data.time,sim_data.out_qr_d1)
+legend(["dq0", "dq1", "dq2"])
 
 
+figure(3)
+plot(sim_data.time,additional.k(1,:)-additional.qchd(1,:),sim_data.time,additional.k(2,:)-additional.qchd(2,:),sim_data.time,additional.k(3,:)-additional.qchd(3,:))
+legend(["eq1", "eq2", "eq2"])
+
+
+figure(4)
+plot3(additional.k(1,:),additional.k(2,:),additional.k(3,:),additional.qchd(1,:),additional.qchd(2,:),additional.qchd(3,:))
+legend(["real trajectory", "desired trajectory"])
