@@ -44,8 +44,12 @@ class UnicycleModel(Model):
         self.L = L             # half of axle length
     
     def step(self, u: np.array):
-        # TODO given current state (self._state) and control inputs u
-        # evaluate new state after time self._dt
+        K = np.array([[np.cos(self.state[2]), 0],
+                      [np.sin(self.state[2]), 0],
+                      [0                    , 1]])
+        # print(f"u: {u}")
+        dx = np.matmul(K, u)
+        self._state = self._state + dx * self._dt
         
         return self._state
         
@@ -106,7 +110,8 @@ class Circle(Obstacle):
 
     def distance(self, point: np.array):
         # TODO calculate distance to the center of circular obstacle
-        distance = 0
+        
+        distance = np.linalg.norm(self.center - point[0:2])
         return distance
     
     def _inside(self, point: np.array, radius):
@@ -266,27 +271,31 @@ class MPC:
             # TODO
             # 1. Append m first points from the optimization solution
             # to the solution list
-            
+            solution.append(result.x[0:m])
             
             # 2. Update model's state with current state
-            
+            self.model.state = self.model_state
             
             # 3. Calculate next state of the model given 
             # latest control signals (at the end of solution list
             # which was updated in point 1.
+            state = self.model.step(solution[-1])
             
             
             # 4. Save new state as new point on path
             # Append it to path list
+            path.append(state)
             
             
             # 5. Preserve last vector of control input by
             # removing first m values from optimization result and 
             # assigning it to control input list u
-            
+            u = result.x[m:]            
             
             # 6. Extend control input list with m  
             # values, e.g. with m zeros
+            u = np.concatenate((u, np.zeros(m)))
+            
             
             # Statistics
             diff = state[0:2] - goal[0:2]
@@ -299,11 +308,12 @@ class MPC:
             stats['angle'].append(angle)
             print(f"Step {i:05d}, cost {result.fun:.2f}\n"
                   f"robot: {state}, goal: {goal}\n"
-                  f"distance: {distance:.2f}, angle diff: {angle:.2f}")
+                  f"distance: {distance:.2f}, angle diff: {angle:.2f}, cost {result.fun:.2f}")
             
             # If the cost function is not dropping faster 
             # than some given value terminate calculation
             cost_diff = np.abs(previous_cost - result.fun)
+            # if cost_diff < 0.0001:
             if cost_diff < 0.01:
                 print("Early stop")
                 earlyStop = i
@@ -331,23 +341,41 @@ class MPC:
         m = self.model.m
         steps = len(u) // m
         cost = 0
-        
+
         for i in range(0, steps):
             # iterate new state of the model
             # TODO: 1. run step on the model 
             # providing control signals
+            # self.model.step(u[-1])
+            this_control = u[i*m:(i+1)*m]
+            self.model.step(this_control)
+            # print(f"u: {u[i*m:(i+1)*m]}")
             
             # calculate distance to the goal
             # TODO: 2. calculate distance to goal based on 
             # newly evaluated state, and evaluate angle difference 
             # between current orientation and goal orientation
+            diff = self.model.state[0:2] - self._goal[0:2]
+            distance = np.sqrt(np.dot(diff, diff))
+            angle = (self.model.state[2] - self._goal[2])
+            angle = np.abs(angle)
+            # x = self.model.state[0]
+            # y = self.model.state[1]
+            # theta = self.model.state[2]
+            # diff = np.array([x, y]) - self._goal[0:2]
+            # distance = np.linalg.norm(diff)
+            
+            # angle_diff = np.abs((theta - self._goal[2]))
             
             # TODO: 3. using the distance to goal 
             # calculate cost and add it to overall 'cost'
             
+            cost += 100*distance + 1.8*angle 
+            
             for obstacle in self._obstacles:
-                pass
                 # TODO: 4. evaluate possible collision with obstacles
+                cost +=  -100*(np.tanh(100*(obstacle.distance(self.model.state)-0.3))+ 1)
+
                 
         return cost
     
