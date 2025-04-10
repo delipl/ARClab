@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from staticLin import SimulatorDynamics, SimulatorKinematics, UnicycleModel, trajectory_generator_circle, trajectory_generator_square
 
 def main():
-    start = np.array([0.0, 0.0, np.pi * 3/4  , 0, 0])
+    start = np.array([0.0, 0.0, np.pi/2  , 0, 0])
     dt = 0.01
     model = UnicycleModel(state=start, dt=dt)
     simulator = SimulatorDynamics
