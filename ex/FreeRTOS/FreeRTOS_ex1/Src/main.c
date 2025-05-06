@@ -26,6 +26,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+//#include "FreeRTOSConfig.h"
+#include "stdio.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
 
 // --> include all necessary headers for
 // printf() redirection
@@ -63,19 +68,31 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 
 uint16_t measurement;
+uint32_t ticks;
 SemaphoreHandle_t mutex;
 
+int _write(int file, char *ptr, int len) {
+	HAL_UART_Transmit(&huart2, (uint8_t *) ptr, len, 50);
+	return len;
+}
+
 void measureTask(void *args) {
-
+	TickType_t xLastWakeTime;
+	xLastWakeTime = xTaskGetTickCount();
 	for (;;) {
-
+		measurement = HAL_ADC_GetValue(&hadc1);
+		HAL_ADC_Start(&hadc1);
+		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1000));
 	}
 }
 
 void commTask(void *args) {
-
+	TickType_t xLastWakeTime;
+	xLastWakeTime = xTaskGetTickCount();
 	for (;;) {
-
+		ticks = HAL_GetTick();
+		printf("ADC: %u,\ttime: %lu \r\n", measurement, ticks);
+		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1000));
 	}
 }
 
@@ -115,13 +132,26 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 
 	// --> start TIM1, channel 3 in PWM generation mode, no interrupts
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+
 	// --> start TIM6 in interrupt mode
+	//HAL_TIM_Base_Start_IT(&htim6);
+//	HAL_TIM_Base_Start(&htim6);
+
 	// --> start ADC1
+	HAL_ADC_Start(&hadc1);
+
 	// --> create a mutex
+	mutex = xSemaphoreCreateMutex();
+
 	// --> create all necessary tasks
 	printf("Starting!\r\n");
 
+
 	// --> start FreeRTOS scheduler
+	xTaskCreate(measureTask, "measureTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, NULL);
+	xTaskCreate(commTask, "commTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, NULL);
+	vTaskStartScheduler();
 
 	/* USER CODE END 2 */
 
@@ -129,7 +159,13 @@ int main(void) {
 	/* USER CODE BEGIN WHILE */
 	while (1) {
 
-		// --> place routine reading from ADC for subtask 1 
+		// --> place routine reading from ADC for subtask 1
+
+//		measurement = HAL_ADC_GetValue(&hadc1);
+//		HAL_ADC_Start(&hadc1);
+//		ticks = HAL_GetTick();
+//		printf("ADC: %u,\ttime: %lu \r\n", measurement, ticks);
+//		HAL_Delay(1000);
 
 		/* USER CODE END WHILE */
 
